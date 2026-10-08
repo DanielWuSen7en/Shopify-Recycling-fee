@@ -46,6 +46,7 @@ struct ResolvedRecyclingFee {
 struct FeeLine {
     id: String,
     quantity: i32,
+    total_amount: f64,
     variant_id: Option<String>,
     product_type: Option<String>,
     fee_flag: bool,
@@ -55,6 +56,7 @@ struct FeeLine {
 struct FeeExpandPlan {
     host_line_id: String,
     host_variant_id: String,
+    host_unit_price: f64,
     fee_variant_id: String,
     component_quantity: i32,
     unit_price: f64,
@@ -92,6 +94,7 @@ fn fee_line(line: &CartLine) -> FeeLine {
     FeeLine {
         id: line.id().clone(),
         quantity: *line.quantity(),
+        total_amount: line.cost().total_amount().amount().0,
         variant_id: variant.map(|variant| variant.id().clone()),
         product_type: variant.and_then(|variant| variant.product().product_type().cloned()),
         fee_flag: line
@@ -297,6 +300,7 @@ fn plan_recycling_fee_expand(
     Some(FeeExpandPlan {
         host_line_id: host.id.clone(),
         host_variant_id: host.variant_id.clone()?,
+        host_unit_price: round_money(host.total_amount.max(0.0) / host_quantity as f64),
         fee_variant_id: normalize_variant_gid(&fee.variant_id),
         component_quantity,
         unit_price: round_money(fee.total_fee / presented_quantity.max(1) as f64),
@@ -355,28 +359,33 @@ fn expand_operation(fee: &ResolvedRecyclingFee, plan: &FeeExpandPlan) -> schema:
     schema::LineExpandOperation {
         cart_line_id: plan.host_line_id.clone(),
         expanded_cart_items: vec![
+            // Shopify rejects an expand where only some items are priced.
             schema::ExpandedItem {
                 attributes: Some(vec![]),
                 merchandise_id: plan.host_variant_id.clone(),
-                price: None,
+                price: Some(fixed_price_per_unit(plan.host_unit_price)),
                 quantity: 1,
             },
             schema::ExpandedItem {
                 attributes: Some(attributes),
                 merchandise_id: plan.fee_variant_id.clone(),
-                price: Some(schema::ExpandedItemPriceAdjustment {
-                    adjustment: schema::ExpandedItemPriceAdjustmentValue::FixedPricePerUnit(
-                        schema::ExpandedItemFixedPricePerUnitAdjustment {
-                            amount: Decimal(plan.unit_price),
-                        },
-                    ),
-                }),
+                price: Some(fixed_price_per_unit(plan.unit_price)),
                 quantity: plan.component_quantity,
             },
         ],
         image: None,
         price: None,
         title: None,
+    }
+}
+
+fn fixed_price_per_unit(amount: f64) -> schema::ExpandedItemPriceAdjustment {
+    schema::ExpandedItemPriceAdjustment {
+        adjustment: schema::ExpandedItemPriceAdjustmentValue::FixedPricePerUnit(
+            schema::ExpandedItemFixedPricePerUnitAdjustment {
+                amount: Decimal(amount),
+            },
+        ),
     }
 }
 
@@ -409,6 +418,7 @@ mod tests {
         FeeLine {
             id: format!("gid://shopify/CartLine/{id}"),
             quantity,
+            total_amount: 449.0 * quantity as f64,
             variant_id: Some(format!("gid://shopify/ProductVariant/{variant}")),
             product_type: Some(product_type.to_string()),
             fee_flag: false,
@@ -435,6 +445,7 @@ mod tests {
         let plan = plan(&lines, "CA").unwrap();
         assert_eq!(plan.component_quantity, 1);
         assert_eq!(plan.unit_price, 18.0);
+        assert_eq!(plan.host_unit_price, 449.0);
         assert_eq!(plan.fee_variant_id, "gid://shopify/ProductVariant/11");
     }
 
@@ -444,6 +455,7 @@ mod tests {
         let plan_a = plan(&two_on_one_line, "CA").unwrap();
         assert_eq!(plan_a.component_quantity * 2, 2);
         assert_eq!(plan_a.unit_price, 18.0);
+        assert_eq!(plan_a.host_unit_price, 449.0);
 
         let two_lines = [
             line("1", 1, "100", "Mattresses"),

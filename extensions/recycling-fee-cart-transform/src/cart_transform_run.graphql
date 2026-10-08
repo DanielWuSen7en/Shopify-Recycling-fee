@@ -17,6 +17,11 @@ query Input {
       recyclingFee: attribute(key: "_recycling_fee") {
         value
       }
+      cost {
+        totalAmount {
+          amount
+        }
+      }
       merchandise {
         __typename
         ... on ProductVariant {
