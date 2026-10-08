@@ -1,0 +1,14 @@
+api_version = "2025-10"
+
+[[extensions]]
+name = "Mattress recycling fee"
+handle = "recycling-fee-checkout"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/RecyclingFeeCheckout.tsx"
+target = "purchase.checkout.block.render"
+
+[[extensions.metafields]]
+namespace = "$app:recycling_fee"
+key = "config"

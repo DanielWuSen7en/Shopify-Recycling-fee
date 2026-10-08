@@ -1,0 +1,14 @@
+{
+  "name": "recycling-fee-checkout",
+  "private": true,
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "shopify app build"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.3.x",
+    "@shopify/ui-extensions": "~2025.10.0",
+    "preact": "^10.10.x"
+  }
+}

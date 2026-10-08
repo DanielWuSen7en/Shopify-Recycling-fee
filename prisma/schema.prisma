@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model RecyclingFeeSettings {
+  shop                 String   @id
+  enabled              Boolean  @default(true)
+  mattressProductTypes Json     @default("[\"Mattresses\"]")
+  feeProductId         String?
+  feeVariantId         String?
+  noticeTitle          String   @default("Mattress Recycling Fee")
+  explanation          String   @default("A state-mandated recycling fee may apply to each mattress, foundation, or bed frame in applicable states. The fee supports state mattress recycling programs.")
+  noticeLinkText       String   @default("Learn more about mattress recycling")
+  noticeLinkUrl        String   @default("https://egohome.com/pages/mattress-recycling-fee")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model RecyclingFeeRate {
+  id        String   @id @default(cuid())
+  shop      String
+  stateCode String
+  stateName String
+  rate      Float
+  sku       String?
+  variantId String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, stateCode])
+  @@index([shop])
+}

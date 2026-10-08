@@ -1,0 +1,31 @@
+query Input {
+  shop {
+    recyclingFee: metafield(namespace: "$app:recycling_fee", key: "config") {
+      value
+    }
+  }
+  cart {
+    recyclingFeeProvince: attribute(key: "_recycling_fee_province") {
+      value
+    }
+    billingAddress {
+      provinceCode
+    }
+    lines {
+      id
+      quantity
+      recyclingFee: attribute(key: "_recycling_fee") {
+        value
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            productType
+          }
+        }
+      }
+    }
+  }
+}

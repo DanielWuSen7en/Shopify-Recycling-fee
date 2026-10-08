@@ -1,0 +1,17 @@
+api_version = "2026-07"
+
+[[extensions]]
+name = "Recycling Fee Cart Transform"
+handle = "recycling-fee-cart-transform"
+type = "function"
+description = "Expands the state mattress recycling fee onto a mattress line when checkout cannot add it."
+
+  [[extensions.targeting]]
+  target = "cart.transform.run"
+  input_query = "src/cart_transform_run.graphql"
+  export = "cart_transform_run"
+
+  [extensions.build]
+  command = "cargo build --target=wasm32-unknown-unknown --release"
+  path = "target/wasm32-unknown-unknown/release/recycling-fee-cart-transform.wasm"
+  watch = [ "src/**/*.rs" ]

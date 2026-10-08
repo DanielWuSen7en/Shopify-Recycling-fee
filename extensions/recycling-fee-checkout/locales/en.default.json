@@ -1,0 +1,5 @@
+{
+  "name": "Mattress recycling fee",
+  "feeBannerHeading": "Mattress recycling fee",
+  "feeBannerBody": "{{explanation}} Fee: {{amount}} ({{state}} × {{qty}} mattress{{plural}})."
+}
