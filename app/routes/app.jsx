@@ -24,6 +24,7 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
         <s-link href="/app">床垫回收费</s-link>
+        <s-link href="/app/stats">数据统计</s-link>
       </s-app-nav>
       <Outlet />
     </AppProvider>
