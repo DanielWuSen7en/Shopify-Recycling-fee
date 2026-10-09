@@ -74,6 +74,20 @@ export const action = async ({ request }) => {
   }
 };
 
+function StatusCard({ label, children, caption }) {
+  return (
+    <s-box padding="base" border="base" border-radius="base" background="base">
+      <s-stack direction="block" gap="small-200">
+        <s-text color="subdued">{label}</s-text>
+        <s-stack direction="inline" gap="small-200" align-items="center">
+          {children}
+        </s-stack>
+        {caption && <s-text color="subdued">{caption}</s-text>}
+      </s-stack>
+    </s-box>
+  );
+}
+
 export default function RecyclingFeesPage() {
   const initial = useLoaderData();
   const fetcher = useFetcher();
@@ -95,6 +109,11 @@ export default function RecyclingFeesPage() {
   const busy = fetcher.state !== "idle";
   const notice = fetcher.data?.message || fetcher.data?.error;
   const noticeTone = fetcher.data?.ok === false ? "critical" : "success";
+  const pending = busy ? fetcher.json : null;
+  const isPending = (intent, id) =>
+    pending?.intent === intent && (id === undefined || pending?.id === id);
+  const activeRateCount = rates.filter((item) => item.isActive).length;
+  const transformReady = initial.cartTransformStatus?.status === "ready";
 
   useEffect(() => {
     if (!fetcher.data?.settings) return;
@@ -113,9 +132,56 @@ export default function RecyclingFeesPage() {
     });
   }
 
+  function saveSettings() {
+    submit({
+      intent: "saveSettings",
+      enabled,
+      mattressProductTypes,
+      noticeTitle,
+      explanation,
+      noticeLinkText,
+      noticeLinkUrl,
+      feeProductId: settings.feeProductId,
+      feeVariantId: settings.feeVariantId,
+    });
+  }
+
+  function upsertRate() {
+    submit({
+      intent: "upsertRate",
+      stateCode,
+      stateName,
+      rate,
+      sku,
+      isActive: true,
+    });
+    setStateCode("");
+    setStateName("");
+    setRate("");
+    setSku("");
+  }
+
   return (
-    <s-page heading="床垫回收费">
-      {initial.cartTransformStatus?.status !== "ready" && (
+    <s-page heading="床垫回收费" inline-size="base">
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        disabled={busy || undefined}
+        loading={isPending("saveSettings") || undefined}
+        onClick={saveSettings}
+      >
+        保存设置
+      </s-button>
+      <s-button
+        slot="secondary-actions"
+        disabled={busy || undefined}
+        loading={isPending("ensureProduct") || undefined}
+        onClick={() => submit({ intent: "ensureProduct" })}
+      >
+        同步州 SKU 变体
+      </s-button>
+
+      {!transformReady && (
         <s-banner tone="warning" heading="快捷支付回收费未就绪">
           {initial.cartTransformStatus?.message}
         </s-banner>
@@ -127,198 +193,236 @@ export default function RecyclingFeesPage() {
         </s-banner>
       )}
 
-      <s-section heading="功能设置">
-        <s-box padding="base" border="base" border-radius="base">
-          <s-stack direction="block" gap="base">
-            <s-switch
-              label="启用回收费"
-              checked={enabled}
-              onChange={(event) => setEnabled(Boolean(event.target.checked))}
-            />
-            <s-text-field
-              label="床垫 product type（逗号分隔）"
-              details="仅统计匹配这些 product type 的商品数量。默认 Mattresses"
-              value={mattressProductTypes}
-              onInput={(event) => setMattressProductTypes(event.target.value)}
-            />
-            <s-text tone="subdued">
-              回收费商品：{settings.feeProductId || "尚未创建"}
-            </s-text>
-          </s-stack>
-        </s-box>
+      <s-section>
+        <s-query-container>
+          <s-grid
+            grid-template-columns="@container (inline-size > 640px) 1fr 1fr 1fr 1fr, 1fr 1fr"
+            gap="base"
+          >
+            <StatusCard label="回收费">
+              <s-badge tone={settings.enabled ? "success" : "neutral"}>
+                {settings.enabled ? "启用" : "停用"}
+              </s-badge>
+            </StatusCard>
+            <StatusCard label="收费州" caption={`共 ${rates.length} 个州`}>
+              <s-heading>{activeRateCount}</s-heading>
+              <s-text color="subdued">个启用</s-text>
+            </StatusCard>
+            <StatusCard label="回收费商品">
+              <s-badge tone={settings.feeProductId ? "success" : "warning"}>
+                {settings.feeProductId ? "已创建" : "尚未创建"}
+              </s-badge>
+            </StatusCard>
+            <StatusCard label="快捷支付">
+              <s-badge tone={transformReady ? "success" : "warning"}>
+                {transformReady ? "已就绪" : "未就绪"}
+              </s-badge>
+            </StatusCard>
+          </s-grid>
+        </s-query-container>
       </s-section>
 
-      <s-section heading="结账说明文案">
-        <s-box padding="base" border="base" border-radius="base">
-          <s-stack direction="block" gap="base">
-            <s-text-field
-              label="标题"
-              value={noticeTitle}
-              onInput={(event) => setNoticeTitle(event.target.value)}
-            />
-            <s-text-area
-              label="说明文案"
-              value={explanation}
-              onInput={(event) => setExplanation(event.target.value)}
-            />
-            <s-text-field
-              label="跳转链接文案"
-              value={noticeLinkText}
-              onInput={(event) => setNoticeLinkText(event.target.value)}
-            />
-            <s-url-field
-              label="跳转地址"
-              value={noticeLinkUrl}
-              onInput={(event) => setNoticeLinkUrl(event.target.value)}
-            />
-            <s-stack direction="inline" gap="base">
-              <s-button
-                variant="primary"
-                disabled={busy}
-                onClick={() =>
-                  submit({
-                    intent: "saveSettings",
-                    enabled,
-                    mattressProductTypes,
-                    noticeTitle,
-                    explanation,
-                    noticeLinkText,
-                    noticeLinkUrl,
-                    feeProductId: settings.feeProductId,
-                    feeVariantId: settings.feeVariantId,
-                  })
-                }
-              >
-                保存设置
-              </s-button>
-              <s-button
-                disabled={busy}
-                onClick={() => submit({ intent: "ensureProduct" })}
-              >
-                同步州 SKU 变体
-              </s-button>
-            </s-stack>
-          </s-stack>
-        </s-box>
+      <s-section heading="功能设置">
+        <s-stack direction="block" gap="base">
+          <s-switch
+            label="启用回收费"
+            checked={enabled || undefined}
+            onChange={(event) => setEnabled(Boolean(event.target.checked))}
+          />
+          <s-text-field
+            label="床垫 product type（逗号分隔）"
+            details="仅统计匹配这些 product type 的商品数量。默认 Mattresses"
+            value={mattressProductTypes}
+            onInput={(event) => setMattressProductTypes(event.target.value)}
+          />
+        </s-stack>
       </s-section>
 
       <s-section heading="州费率 / SKU">
-        <s-box padding="base" border="base" border-radius="base" background="subdued">
-          <s-stack direction="block" gap="base">
-            <s-grid grid-template-columns="1fr 1fr 1fr 1fr auto" gap="base">
-              <s-text-field
-                label="州代码"
-                placeholder="CA"
-                value={stateCode}
-                onInput={(event) => {
-                  const next = event.target.value;
-                  setStateCode(next);
-                  if (!sku) {
-                    const code = String(next || "")
-                      .trim()
-                      .toUpperCase()
-                      .replace(/[^A-Z]/g, "")
-                      .slice(0, 2);
-                    if (code.length === 2) setSku(`SSMRF${code}`);
-                  }
-                }}
-              />
-              <s-text-field
-                label="州名称"
-                placeholder="California"
-                value={stateName}
-                onInput={(event) => setStateName(event.target.value)}
-              />
-              <s-number-field
-                label="费率 / 件（USD）"
-                min={0}
-                step={0.01}
-                value={rate}
-                onInput={(event) => setRate(event.target.value)}
-              />
-              <s-text-field
-                label="SKU"
-                placeholder="SSMRFCA"
-                value={sku}
-                onInput={(event) => setSku(event.target.value)}
-              />
-              <s-button
-                variant="primary"
-                disabled={busy}
-                onClick={() => {
-                  submit({
-                    intent: "upsertRate",
-                    stateCode,
-                    stateName,
-                    rate,
-                    sku,
-                    isActive: true,
-                  });
-                  setStateCode("");
-                  setStateName("");
-                  setRate("");
-                  setSku("");
-                }}
+        <s-stack direction="block" gap="base">
+          <s-box padding="base" border="base" border-radius="base" background="subdued">
+            <s-query-container>
+              <s-grid
+                grid-template-columns="@container (inline-size > 640px) 1fr 1.4fr 1fr 1fr auto, 1fr 1fr"
+                gap="base"
+                align-items="end"
               >
-                添加 / 更新
-              </s-button>
-            </s-grid>
-          </s-stack>
-        </s-box>
+                <s-text-field
+                  label="州代码"
+                  placeholder="CA"
+                  value={stateCode}
+                  onInput={(event) => {
+                    const next = event.target.value;
+                    setStateCode(next);
+                    if (!sku) {
+                      const code = String(next || "")
+                        .trim()
+                        .toUpperCase()
+                        .replace(/[^A-Z]/g, "")
+                        .slice(0, 2);
+                      if (code.length === 2) setSku(`SSMRF${code}`);
+                    }
+                  }}
+                />
+                <s-text-field
+                  label="州名称"
+                  placeholder="California"
+                  value={stateName}
+                  onInput={(event) => setStateName(event.target.value)}
+                />
+                <s-number-field
+                  label="费率 / 件（USD）"
+                  min={0}
+                  step={0.01}
+                  value={rate}
+                  onInput={(event) => setRate(event.target.value)}
+                />
+                <s-text-field
+                  label="SKU"
+                  placeholder="SSMRFCA"
+                  value={sku}
+                  onInput={(event) => setSku(event.target.value)}
+                />
+                <s-button
+                  variant="primary"
+                  disabled={busy || undefined}
+                  loading={isPending("upsertRate") || undefined}
+                  onClick={upsertRate}
+                >
+                  添加 / 更新
+                </s-button>
+              </s-grid>
+            </s-query-container>
+          </s-box>
 
-        <s-box padding="base" border="base" border-radius="base">
-          <s-stack direction="block" gap="base">
-            {rates.length === 0 ? (
-              <s-text tone="subdued">暂无州费率</s-text>
-            ) : (
-              rates.map((item) => (
-                <s-stack key={item.id} direction="block" gap="small">
-                  <s-stack direction="inline" gap="base" alignItems="center">
-                    <s-text type="strong">
-                      {item.stateCode} · {item.stateName}
-                    </s-text>
-                    <s-text>${Number(item.rate).toFixed(2)} / 件</s-text>
-                    <s-text>SKU: {item.sku || "-"}</s-text>
-                    <s-badge tone={item.isActive ? "success" : "neutral"}>
-                      {item.isActive ? "启用" : "停用"}
-                    </s-badge>
-                    <s-button
-                      variant="tertiary"
-                      disabled={busy}
-                      onClick={() =>
-                        submit({
-                          intent: "toggleRate",
-                          id: item.id,
-                          isActive: !item.isActive,
-                        })
-                      }
-                    >
-                      {item.isActive ? "停用" : "启用"}
-                    </s-button>
-                    <s-button
-                      tone="critical"
-                      variant="tertiary"
-                      disabled={busy}
-                      onClick={() => submit({ intent: "deleteRate", id: item.id })}
-                    >
-                      删除
-                    </s-button>
-                  </s-stack>
-                  <s-text tone="subdued">
-                    变体：{item.variantId || "尚未同步"}
-                  </s-text>
-                </s-stack>
-              ))
-            )}
-          </s-stack>
-        </s-box>
+          {rates.length === 0 ? (
+            <s-box padding="large-200" border="base" border-radius="base">
+              <s-stack direction="block" gap="small-200" align-items="center">
+                <s-text type="strong">暂无州费率</s-text>
+                <s-text color="subdued">在上方填写州代码和费率后添加。</s-text>
+              </s-stack>
+            </s-box>
+          ) : (
+            <s-box border="base" border-radius="base" overflow="hidden">
+              <s-table>
+                <s-table-header-row>
+                  <s-table-header list-slot="primary">州</s-table-header>
+                  <s-table-header list-slot="labeled" format="currency">
+                    费率 / 件
+                  </s-table-header>
+                  <s-table-header list-slot="labeled">SKU</s-table-header>
+                  <s-table-header list-slot="secondary">状态</s-table-header>
+                  <s-table-header list-slot="labeled">变体</s-table-header>
+                  <s-table-header>操作</s-table-header>
+                </s-table-header-row>
+                <s-table-body>
+                  {rates.map((item) => (
+                    <s-table-row key={item.id}>
+                      <s-table-cell>
+                        <s-stack direction="block" gap="none">
+                          <s-text type="strong">{item.stateCode}</s-text>
+                          <s-text color="subdued">{item.stateName}</s-text>
+                        </s-stack>
+                      </s-table-cell>
+                      <s-table-cell>${Number(item.rate).toFixed(2)}</s-table-cell>
+                      <s-table-cell>{item.sku || "-"}</s-table-cell>
+                      <s-table-cell>
+                        <s-badge tone={item.isActive ? "success" : "neutral"}>
+                          {item.isActive ? "启用" : "停用"}
+                        </s-badge>
+                      </s-table-cell>
+                      <s-table-cell>
+                        <s-text color="subdued">{item.variantId || "尚未同步"}</s-text>
+                      </s-table-cell>
+                      <s-table-cell>
+                        <s-stack direction="inline" gap="small-200">
+                          <s-button
+                            variant="tertiary"
+                            disabled={busy || undefined}
+                            loading={isPending("toggleRate", item.id) || undefined}
+                            onClick={() =>
+                              submit({
+                                intent: "toggleRate",
+                                id: item.id,
+                                isActive: !item.isActive,
+                              })
+                            }
+                          >
+                            {item.isActive ? "停用" : "启用"}
+                          </s-button>
+                          <s-button
+                            tone="critical"
+                            variant="tertiary"
+                            disabled={busy || undefined}
+                            loading={isPending("deleteRate", item.id) || undefined}
+                            onClick={() => submit({ intent: "deleteRate", id: item.id })}
+                          >
+                            删除
+                          </s-button>
+                        </s-stack>
+                      </s-table-cell>
+                    </s-table-row>
+                  ))}
+                </s-table-body>
+              </s-table>
+            </s-box>
+          )}
+        </s-stack>
       </s-section>
 
-      <s-section heading="计费规则">
-        <s-banner tone="info">
-          回收费 = 床垫数量 × 对应州费率。每个州对应独立 SKU 变体（如 CA → SSMRFCA）。
-          结账时按收货州添加对应 SKU；未配置的州不收费。
-        </s-banner>
+      <s-section heading="结账说明文案">
+        <s-stack direction="block" gap="base">
+          <s-text-field
+            label="标题"
+            value={noticeTitle}
+            onInput={(event) => setNoticeTitle(event.target.value)}
+          />
+          <s-text-area
+            label="说明文案"
+            rows={4}
+            value={explanation}
+            onInput={(event) => setExplanation(event.target.value)}
+          />
+          <s-query-container>
+            <s-grid
+              grid-template-columns="@container (inline-size > 520px) 1fr 1.6fr, 1fr"
+              gap="base"
+            >
+              <s-text-field
+                label="跳转链接文案"
+                value={noticeLinkText}
+                onInput={(event) => setNoticeLinkText(event.target.value)}
+              />
+              <s-url-field
+                label="跳转地址"
+                value={noticeLinkUrl}
+                onInput={(event) => setNoticeLinkUrl(event.target.value)}
+              />
+            </s-grid>
+          </s-query-container>
+        </s-stack>
+      </s-section>
+
+      <s-section slot="aside" heading="计费规则">
+        <s-stack direction="block" gap="base">
+          <s-box padding="base" border-radius="base" background="subdued">
+            <s-text type="strong">回收费 = 床垫数量 × 对应州费率</s-text>
+          </s-box>
+          <s-unordered-list>
+            <s-list-item>每个州对应独立 SKU 变体（如 CA → SSMRFCA）。</s-list-item>
+            <s-list-item>结账时按收货州添加对应 SKU。</s-list-item>
+            <s-list-item>未配置的州不收费。</s-list-item>
+          </s-unordered-list>
+        </s-stack>
+      </s-section>
+
+      <s-section slot="aside" heading="回收费商品">
+        <s-stack direction="block" gap="small-200">
+          <s-badge tone={settings.feeProductId ? "success" : "warning"}>
+            {settings.feeProductId ? "已创建" : "尚未创建"}
+          </s-badge>
+          <s-text color="subdued">{settings.feeProductId || "尚未创建"}</s-text>
+        </s-stack>
       </s-section>
     </s-page>
   );
