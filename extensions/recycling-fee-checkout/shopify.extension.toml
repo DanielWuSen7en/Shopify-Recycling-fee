@@ -3,6 +3,7 @@ api_version = "2025-10"
 [[extensions]]
 name = "Mattress recycling fee"
 handle = "recycling-fee-checkout"
+uid = "a71bed99-035f-92e5-d3f4-660f6ecd90f0d8ece7c5"
 type = "ui_extension"
 
 [[extensions.targeting]]

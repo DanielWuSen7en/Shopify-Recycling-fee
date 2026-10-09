@@ -3,6 +3,7 @@ api_version = "2026-07"
 [[extensions]]
 name = "Recycling Fee Cart Transform"
 handle = "recycling-fee-cart-transform"
+uid = "d7d660ea-1d9f-83b1-4111-1a16eaebe13a5e104469"
 type = "function"
 description = "Expands the state mattress recycling fee onto a mattress line when checkout cannot add it."
 
